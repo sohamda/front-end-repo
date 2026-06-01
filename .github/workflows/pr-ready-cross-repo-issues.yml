@@ -1,0 +1,158 @@
+name: PR Ready Cross-Repo Issues
+
+on:
+  pull_request:
+    types:
+      - ready_for_review
+
+jobs:
+  create-cross-repo-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+    steps:
+      - name: Process connected issues and create cross-repo issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.info('No pull request payload found.');
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const prNumber = pr.number;
+            const currentRepoSlug = `${owner}/${repo}`.toLowerCase();
+
+            const extractRepoSlugs = (text) => {
+              if (!text) return [];
+              const matches = text.match(/\b[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\b/g) || [];
+              const unique = [...new Set(matches.map((value) => value.trim()))];
+              return unique.filter((slug) => slug.toLowerCase() !== currentRepoSlug);
+            };
+
+            const query = `
+              query($owner: String!, $repo: String!, $prNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $prNumber) {
+                    closingIssuesReferences(first: 25) {
+                      nodes {
+                        number
+                        title
+                        body
+                        url
+                        repository {
+                          name
+                          owner {
+                            login
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const result = await github.graphql(query, { owner, repo, prNumber });
+            const connectedIssues =
+              result?.repository?.pullRequest?.closingIssuesReferences?.nodes ?? [];
+
+            if (!connectedIssues.length) {
+              core.info(`No connected issues found for PR #${prNumber}.`);
+              return;
+            }
+
+            const token = process.env.COPILOT_GITHUB_TOKEN;
+            if (!token) {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: 'COPILOT_GITHUB_TOKEN is missing for cross-repo issue creation',
+                body: [
+                  `PR #${prNumber} was marked ready for review, but cross-repo issue creation could not run.`,
+                  '',
+                  'The repository secret `COPILOT_GITHUB_TOKEN` is missing or empty.',
+                  'Please add or update this token with access to the impacted repositories.'
+                ].join('\n')
+              });
+              core.warning('COPILOT_GITHUB_TOKEN is missing. Created issue in current repository.');
+              return;
+            }
+
+            const crossRepoClient = getOctokit(token);
+            const reposToNotify = new Set();
+
+            for (const issue of connectedIssues) {
+              const slugs = extractRepoSlugs(issue.body);
+              for (const slug of slugs) reposToNotify.add(slug);
+            }
+
+            if (!reposToNotify.size) {
+              core.info('No impacted repositories found in connected issue descriptions.');
+              return;
+            }
+
+            const failures = [];
+
+            for (const repoSlug of reposToNotify) {
+              const [targetOwner, targetRepo] = repoSlug.split('/');
+              try {
+                await crossRepoClient.rest.issues.create({
+                  owner: targetOwner,
+                  repo: targetRepo,
+                  title: `[Cross-repo impact] Follow-up for PR #${prNumber} in ${owner}/${repo}`,
+                  body: [
+                    `This issue was created from ${owner}/${repo}#${prNumber}.`,
+                    '',
+                    'A connected issue in the source repository indicates this repository is impacted.',
+                    '',
+                    `Source PR: ${pr.html_url}`,
+                    `Connected issues reviewed: ${connectedIssues.map((i) => i.url).join(', ')}`
+                  ].join('\n')
+                });
+                core.info(`Created issue in ${repoSlug}.`);
+              } catch (error) {
+                failures.push(`${repoSlug}: ${error.message}`);
+                core.warning(`Failed creating issue in ${repoSlug}: ${error.message}`);
+              }
+            }
+
+            if (!failures.length) {
+              core.info('Successfully created issues in all impacted repositories.');
+              return;
+            }
+
+            const failureTitle = 'COPILOT_GITHUB_TOKEN requires updated cross-repo access';
+            const openIssues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100
+            });
+            const alreadyOpen = openIssues.data.some((item) => item.title === failureTitle);
+
+            if (!alreadyOpen) {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: failureTitle,
+                body: [
+                  `Cross-repo issue creation failed for PR #${prNumber}.`,
+                  '',
+                  'Please update the `COPILOT_GITHUB_TOKEN` secret with appropriate repository access.',
+                  '',
+                  'Failures:',
+                  ...failures.map((entry) => `- ${entry}`)
+                ].join('\n')
+              });
+              core.info('Created token-access issue in current repository.');
+            } else {
+              core.info('Token-access issue already exists in current repository.');
+            }
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
