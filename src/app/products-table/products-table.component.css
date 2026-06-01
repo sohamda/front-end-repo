@@ -1,0 +1,41 @@
+.container {
+  padding: 20px;
+}
+
+h2 {
+  margin-bottom: 16px;
+  font-size: 1.4rem;
+  color: #333;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+th, td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  background-color: #f4f4f4;
+  font-weight: 600;
+  color: #555;
+}
+
+tr:hover {
+  background-color: #fafafa;
+}
+
+.loading {
+  color: #888;
+  padding: 20px 0;
+}
+
+.error {
+  color: #c0392b;
+  padding: 20px 0;
+}
