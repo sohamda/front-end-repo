@@ -11,9 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-      contents: read
+      contents: write
+      pull-requests: write
     steps:
-      - name: Assign an open unassigned issue to Copilot
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+
+      - name: Assign issue to Copilot and create PR
         env:
           GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
         run: |
@@ -25,8 +31,12 @@ jobs:
             exit 0
           fi
 
-          ASSIGNED=false
+          # Get issue details
+          ISSUE_TITLE="$(gh api "repos/$REPO/issues/$ISSUE_NUMBER" --jq '.title')"
+          echo "Processing issue #$ISSUE_NUMBER: $ISSUE_TITLE"
 
+          # Assign issue to Copilot
+          ASSIGNED=false
           for ASSIGNEE in "copilot-swe-agent[bot]" "copilot-swe-agent" "Copilot" "copilot"; do
             echo "Trying assignee: $ASSIGNEE"
             gh api "repos/$REPO/issues/$ISSUE_NUMBER/assignees" \
@@ -45,4 +55,54 @@ jobs:
 
           if [[ "$ASSIGNED" != "true" ]]; then
             echo "::warning::Could not auto-assign Copilot to issue #$ISSUE_NUMBER — assign manually from the UI"
+            exit 0
           fi
+
+          # Check if a PR already exists for this issue
+          EXISTING_PR="$(gh pr list --search "Fixes #$ISSUE_NUMBER in:body" --json number --jq '.[0].number // empty')"
+          if [[ -n "$EXISTING_PR" ]]; then
+            echo "PR #$EXISTING_PR already exists for issue #$ISSUE_NUMBER. Skipping PR creation."
+            exit 0
+          fi
+
+          # Create a branch for the issue
+          BRANCH_NAME="copilot/issue-$ISSUE_NUMBER"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Create and switch to new branch
+          git checkout -b "$BRANCH_NAME"
+          
+          # Create a placeholder commit to allow PR creation
+          echo "# Issue #$ISSUE_NUMBER - Work in Progress" > ".github/copilot-issue-$ISSUE_NUMBER.md"
+          git add ".github/copilot-issue-$ISSUE_NUMBER.md"
+          git commit -m "Initialize work on issue #$ISSUE_NUMBER"
+          
+          # Push the branch
+          git push origin "$BRANCH_NAME"
+          
+          # Create PR with issue reference
+          PR_BODY="Fixes #$ISSUE_NUMBER
+
+This PR was automatically created to address the issue.
+
+## Issue
+$ISSUE_TITLE
+
+## Status
+⏳ Work in progress - Copilot is working on this issue."
+
+          gh pr create \
+            --title "Fix: $ISSUE_TITLE" \
+            --body "$PR_BODY" \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --draft
+          
+          echo "✅ Created draft PR for issue #$ISSUE_NUMBER"
+          
+          # Mark PR as ready for review to trigger cross-repo workflow
+          PR_NUMBER="$(gh pr list --head "$BRANCH_NAME" --json number --jq '.[0].number')"
+          gh pr ready "$PR_NUMBER"
+          
+          echo "✅ Marked PR #$PR_NUMBER as ready for review"
