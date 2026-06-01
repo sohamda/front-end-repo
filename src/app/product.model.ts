@@ -5,6 +5,7 @@ export interface Product {
   category: string;
   landOfOrigin: string;
   inStock: number;
+  owner: string;
 }
 
 export interface ProductsResponse {
