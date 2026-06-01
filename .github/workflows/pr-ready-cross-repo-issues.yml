@@ -84,7 +84,7 @@ jobs:
               return;
             }
 
-            const crossRepoClient = getOctokit(token);
+            const crossRepoClient = new github.constructor({ auth: token });
             const reposToNotify = new Set();
 
             for (const issue of connectedIssues) {
