@@ -82,19 +82,17 @@ jobs:
           git push origin "$BRANCH_NAME"
           
           # Create PR with issue reference
-          PR_BODY="Fixes #$ISSUE_NUMBER
-
-This PR was automatically created to address the issue.
-
-## Issue
-$ISSUE_TITLE
-
-## Status
-⏳ Work in progress - Copilot is working on this issue."
-
           gh pr create \
             --title "Fix: $ISSUE_TITLE" \
-            --body "$PR_BODY" \
+            --body "Fixes #$ISSUE_NUMBER
+          
+          This PR was automatically created to address the issue.
+          
+          ## Issue
+          $ISSUE_TITLE
+          
+          ## Status
+          ⏳ Work in progress - Copilot is working on this issue." \
             --base main \
             --head "$BRANCH_NAME" \
             --draft
