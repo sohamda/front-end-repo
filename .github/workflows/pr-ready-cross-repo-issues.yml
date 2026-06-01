@@ -17,8 +17,6 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const { getOctokit } = require('@actions/github');
-            
             const pr = context.payload.pull_request;
             if (!pr) {
               core.info('No pull request payload found.');
@@ -86,7 +84,7 @@ jobs:
               return;
             }
 
-            const crossRepoClient = getOctokit(token);
+            const crossRepoClient = new github.constructor({ auth: token });
             const reposToNotify = new Set();
 
             for (const issue of connectedIssues) {
