@@ -1,11 +1,10 @@
 export interface Product {
-  id: number;
-  title: string;
+  name: string;
+  description: string;
   price: number;
   category: string;
-  brand: string;
-  stock: number;
-  rating: number;
+  landOfOrigin: string;
+  inStock: number;
 }
 
 export interface ProductsResponse {

@@ -10,8 +10,22 @@ describe('ProductsTableComponent', () => {
   let mockProductService: jasmine.SpyObj<ProductService>;
 
   const mockProducts: Product[] = [
-    { id: 1, title: 'Product A', price: 9.99, category: 'electronics', brand: 'BrandX', stock: 50, rating: 4.5 },
-    { id: 2, title: 'Product B', price: 19.99, category: 'clothing', brand: 'BrandY', stock: 10, rating: 3.8 }
+    {
+      name: 'Product A',
+      description: 'Description A',
+      price: 9.99,
+      category: 'electronics',
+      landOfOrigin: 'Germany',
+      inStock: 50
+    },
+    {
+      name: 'Product B',
+      description: 'Description B',
+      price: 19.99,
+      category: 'clothing',
+      landOfOrigin: 'France',
+      inStock: 0
+    }
   ];
 
   beforeEach(async () => {
@@ -40,8 +54,9 @@ describe('ProductsTableComponent', () => {
   it('should display correct product data in each row', () => {
     const firstRow = fixture.nativeElement.querySelector('tbody tr');
     expect(firstRow.textContent).toContain('Product A');
+    expect(firstRow.textContent).toContain('Description A');
     expect(firstRow.textContent).toContain('electronics');
-    expect(firstRow.textContent).toContain('BrandX');
+    expect(firstRow.textContent).toContain('Germany');
   });
 
   it('should show loading indicator before data arrives', () => {
@@ -62,16 +77,20 @@ describe('ProductsTableComponent', () => {
     expect(errorEl.textContent).toContain('Failed to load');
   });
 
-  it('should have all 7 table column headers', () => {
+  it('should have all 6 table column headers', () => {
     const headers = fixture.nativeElement.querySelectorAll('thead th');
-    expect(headers.length).toBe(7);
+    expect(headers.length).toBe(6);
     const headerTexts = Array.from(headers).map((h: any) => h.textContent.trim());
-    expect(headerTexts).toContain('ID');
-    expect(headerTexts).toContain('Title');
-    expect(headerTexts).toContain('Price ($)');
+    expect(headerTexts).toContain('Name');
+    expect(headerTexts).toContain('Description');
+    expect(headerTexts).toContain('Price (€)');
     expect(headerTexts).toContain('Category');
-    expect(headerTexts).toContain('Brand');
-    expect(headerTexts).toContain('Stock');
-    expect(headerTexts).toContain('Rating');
+    expect(headerTexts).toContain('Land of Origin');
+    expect(headerTexts).toContain('InStock');
+  });
+
+  it('should display inStock as 0 when stock is empty', () => {
+    const rows = fixture.nativeElement.querySelectorAll('tbody tr');
+    expect(rows[1].textContent).toContain('0');
   });
 });
