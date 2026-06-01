@@ -16,7 +16,8 @@ describe('ProductsTableComponent', () => {
       price: 9.99,
       category: 'electronics',
       landOfOrigin: 'Germany',
-      inStock: 50
+      inStock: 50,
+      owner: 'Alice'
     },
     {
       name: 'Product B',
@@ -24,7 +25,8 @@ describe('ProductsTableComponent', () => {
       price: 19.99,
       category: 'clothing',
       landOfOrigin: 'France',
-      inStock: 0
+      inStock: 0,
+      owner: 'Bob'
     }
   ];
 
@@ -77,9 +79,9 @@ describe('ProductsTableComponent', () => {
     expect(errorEl.textContent).toContain('Failed to load');
   });
 
-  it('should have all 6 table column headers', () => {
+  it('should have all 7 table column headers', () => {
     const headers = fixture.nativeElement.querySelectorAll('thead th');
-    expect(headers.length).toBe(6);
+    expect(headers.length).toBe(7);
     const headerTexts = Array.from(headers).map((h: any) => h.textContent.trim());
     expect(headerTexts).toContain('Name');
     expect(headerTexts).toContain('Description');
@@ -87,6 +89,7 @@ describe('ProductsTableComponent', () => {
     expect(headerTexts).toContain('Category');
     expect(headerTexts).toContain('Land of Origin');
     expect(headerTexts).toContain('InStock');
+    expect(headerTexts).toContain('Owner');
   });
 
   it('should display inStock as 0 when stock is empty', () => {

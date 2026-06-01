@@ -17,7 +17,8 @@ describe('ProductService', () => {
       price: 9.99,
       category: 'electronics',
       landOfOrigin: 'Germany',
-      inStock: 50
+      inStock: 50,
+      owner: 'Alice'
     },
     {
       name: 'Product B',
@@ -25,7 +26,8 @@ describe('ProductService', () => {
       price: 19.99,
       category: 'clothing',
       landOfOrigin: 'France',
-      inStock: 10
+      inStock: 10,
+      owner: 'Bob'
     }
   ];
 
@@ -74,6 +76,7 @@ describe('ProductService', () => {
       expect(product.category).toBeDefined();
       expect(product.landOfOrigin).toBeDefined();
       expect(product.inStock).toBeDefined();
+      expect(product.owner).toBeDefined();
     });
 
     const req = httpMock.expectOne('https://dummyjson.com/products?limit=20');
